@@ -1,0 +1,105 @@
+<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f9d77"><title>مصاريف سامي</title>
+<style>
+:root{--bg:#f4f6f8;--card:#fff;--tx:#1b1f24;--mu:#6b7280;--pr:#0f9d77;--rd:#e5484d;--bd:#e5e7eb;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0f1115;--card:#181b21;--tx:#eceff3;--mu:#98a1ad;--bd:#272b33;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0f1115;--card:#181b21;--tx:#eceff3;--mu:#98a1ad;--bd:#272b33;color-scheme:dark}
+*{box-sizing:border-box}html,body{margin:0;background:var(--bg);color:var(--tx);font-family:system-ui,-apple-system,"Segoe UI",Tahoma,sans-serif}
+body{padding:12px 12px 150px;max-width:640px;margin:auto}
+h1{font-size:20px;margin:6px 4px 12px}h3{margin:14px 4px 8px;font-size:15px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:12px;margin-bottom:10px}
+.row{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.big{font-size:26px;font-weight:700}.mu{color:var(--mu);font-size:13px}.in{color:var(--pr)}.ex{color:var(--rd)}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+input,select,button{font:inherit;color:inherit}
+input,select{width:100%;padding:10px;border:1px solid var(--bd);border-radius:10px;background:var(--bg);margin:4px 0}
+button{border:0;border-radius:10px;padding:10px 14px;background:var(--pr);color:#fff;cursor:pointer}
+button.g{background:var(--bg);color:var(--tx);border:1px solid var(--bd)}button.x{background:none;color:var(--mu);padding:4px 8px}
+.bar{height:8px;background:var(--bg);border-radius:8px;overflow:hidden;margin-top:6px}.bar i{display:block;height:100%;background:var(--pr)}
+nav{position:fixed;inset:auto 0 0 0;background:var(--card);border-top:1px solid var(--bd);display:flex;justify-content:space-around;padding:6px 0 calc(6px + env(safe-area-inset-bottom,0px))}
+nav button{background:none;color:var(--mu);font-size:12px;padding:6px 8px}nav button.on{color:var(--pr);font-weight:700}
+.fab{position:fixed;left:14px;bottom:calc(76px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:10px}
+.fab button{width:54px;height:54px;border-radius:50%;font-size:24px;box-shadow:0 4px 12px #0004;padding:0}
+#modal{position:fixed;inset:0;background:#0007;display:none;align-items:flex-end;z-index:9}
+#modal>div{background:var(--card);width:100%;max-width:640px;margin:auto;border-radius:18px 18px 0 0;padding:16px;max-height:90%;overflow:auto}
+.tg{display:flex;gap:6px}.tg button{flex:1;background:var(--bg);color:var(--tx);border:1px solid var(--bd)}.tg button.on{background:var(--pr);color:#fff}
+</style></head><body>
+<div id="app"></div><div class="fab"><button class="g" onclick="mic()" title="صوت">🎤</button><button onclick="openAdd()">+</button></div>
+<div id="modal" onclick="if(event.target==this)closeM()"><div id="mb"></div></div>
+<nav id="nav"></nav>
+<script>
+const $=s=>document.querySelector(s),esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const def=()=>({tx:[],cats:['طعام','مواصلات','فواتير','تسوق','صحة','ترفيه','تعليم','أخرى'],bud:{},debts:[],cur:'ج.م',theme:''});
+let S;try{S=Object.assign(def(),JSON.parse(localStorage.getItem('sami')||'null')||{})}catch(e){S=def()}
+const save=()=>{try{localStorage.setItem('sami',JSON.stringify(S))}catch(e){}};
+let tab='home',q='';
+const today=()=>new Date().toISOString().slice(0,10),ym=()=>today().slice(0,7);
+const f=n=>Number(n).toLocaleString('en-US',{maximumFractionDigits:2})+' '+S.cur;
+const mt=t=>S.tx.filter(x=>x.d.startsWith(ym())&&(!t||x.t==t));
+const sum=a=>a.reduce((s,x)=>s+x.a,0);
+const catSum=()=>{const o={};mt('e').forEach(x=>o[x.c]=(o[x.c]||0)+x.a);return o};
+function applyTheme(){if(S.theme)document.documentElement.dataset.theme=S.theme;else delete document.documentElement.dataset.theme}
+const tabs=[['home','🏠','الرئيسية'],['bud','🎯','الميزانية'],['debt','🤝','الديون'],['rep','📊','التقارير'],['set','⚙️','الإعدادات']];
+function render(){
+ $('#nav').innerHTML=tabs.map(t=>`<button class="${tab==t[0]?'on':''}" onclick="tab='${t[0]}';render()">${t[1]}<br>${t[2]}</button>`).join('');
+ $('#app').innerHTML='<h1>💰 مصاريف سامي</h1>'+({home,bud,debt,rep,set})[tab]();applyTheme()}
+function home(){
+ const i=sum(mt('i')),e=sum(mt('e')),cs=catSum(),top=Object.entries(cs).sort((a,b)=>b[1]-a[1])[0];
+ let tip='ابدأ بتسجيل أول مصروف 👌';
+ if(top)tip=`أكتر فئة صرفت فيها الشهر ده: ${esc(top[0])} (${Math.round(top[1]/e*100)}٪ من مصاريفك).`;
+ if(e>i&&i>0)tip='⚠️ مصاريفك الشهر ده أكتر من دخلك.';
+ const over=Object.keys(S.bud).find(c=>S.bud[c]>0&&(cs[c]||0)>S.bud[c]);if(over)tip=`⚠️ عديت ميزانية ${esc(over)}.`;
+ const l=S.tx.filter(x=>!q||(x.n+x.c).includes(q)).sort((a,b)=>b.d.localeCompare(a.d)||b.id-a.id).slice(0,80);
+ return `<div class=card><div class=mu>صافي الشهر</div><div class="big ${i-e<0?'ex':'in'}">${f(i-e)}</div>
+ <div class=grid style="margin-top:8px"><div><div class=mu>الدخل</div><b class=in>${f(i)}</b></div><div><div class=mu>المصروفات</div><b class=ex>${f(e)}</b></div></div></div>
+ <div class=card>💡 ${tip}</div><input placeholder="🔍 بحث" value="${esc(q)}" oninput="q=this.value;render();document.querySelector('input').focus()">
+ ${l.map(x=>`<div class="card row"><div><b>${esc(x.c)}</b> <span class=mu>${esc(x.n)}</span><div class=mu>${x.d}</div></div><div class=row><b class="${x.t=='i'?'in':'ex'}">${x.t=='i'?'+':'−'}${f(x.a)}</b><button class=x onclick="del(${x.id})">✕</button></div></div>`).join('')||'<p class=mu>مفيش معاملات لسه.</p>'}`}
+function bud(){const cs=catSum();return '<div class=mu style="margin:0 4px 8px">حدد حد شهري لكل فئة (٠ = بدون حد)</div>'+S.cats.map(c=>{const b=S.bud[c]||0,s=cs[c]||0,p=b?Math.min(100,s/b*100):0;
+ return `<div class=card><div class=row><b>${esc(c)}</b><span class=mu>${f(s)}${b?' / '+f(b):''}</span></div><div class=bar><i style="width:${p}%;background:${p>=100?'var(--rd)':p>=80?'#f5a524':'var(--pr)'}"></i></div>
+ <input type=number inputmode=decimal placeholder="الحد الشهري" value="${b||''}" onchange="S.bud[${JSON.stringify(c).replace(/"/g,'&quot;')}]=+this.value||0;save();render()"></div>`}).join('')}
+function debt(){const o=S.debts.filter(d=>!d.done),a=sum(o.filter(d=>d.dir=='for').map(d=>({a:d.a}))),b=sum(o.filter(d=>d.dir=='on').map(d=>({a:d.a})));
+ return `<div class="grid"><div class=card><div class=mu>ليك عند الناس</div><b class=in>${f(a)}</b></div><div class=card><div class=mu>عليك</div><b class=ex>${f(b)}</b></div></div>
+ <div class=card><input id=dp placeholder="اسم الشخص"><input id=da type=number inputmode=decimal placeholder="المبلغ"><select id=dd><option value=for>سلفته (ليا عنده)</option><option value=on>استلفت منه (عليا)</option></select><input id=dt type=date><button onclick="addDebt()" style="width:100%;margin-top:6px">إضافة دين</button></div>
+ ${S.debts.map((d,i)=>`<div class="card row" style="${d.done?'opacity:.5':''}"><div><b>${esc(d.p)}</b><div class=mu>${d.dir=='for'?'ليك عنده':'عليك له'}${d.due?' • استحقاق '+d.due:''}</div></div><div class=row><b>${f(d.a)}</b>${d.done?'':`<button onclick="S.debts[${i}].done=1;save();render()">تم</button>`}<button class=x onclick="S.debts.splice(${i},1);save();render()">✕</button></div></div>`).join('')}`}
+function addDebt(){const a=+$('#da').value,p=$('#dp').value.trim();if(!a||!p)return;S.debts.push({p,a,dir:$('#dd').value,due:$('#dt').value});save();render()}
+function rep(){const cs=catSum(),e=sum(mt('e')),en=Object.entries(cs).sort((a,b)=>b[1]-a[1]);
+ const w=[0,0,0,0];mt('e').forEach(x=>{w[Math.min(3,Math.floor((+x.d.slice(8)-1)/7))]+=x.a});const mx=Math.max(...w,1);
+ const m={};mt('e').forEach(x=>{const k=x.n||x.c;m[k]=(m[k]||0)+x.a});const tm=Object.entries(m).sort((a,b)=>b[1]-a[1]).slice(0,5);
+ return `<h3>المصروفات حسب الفئة</h3>${en.map(([c,v])=>`<div class=card><div class=row><b>${esc(c)}</b><span>${f(v)}</span></div><div class=bar><i style="width:${v/e*100}%"></i></div></div>`).join('')||'<p class=mu>لا توجد بيانات.</p>'}
+ <h3>الاتجاه الأسبوعي</h3><div class="card row" style="align-items:flex-end;height:130px">${w.map((v,i)=>`<div style="flex:1;text-align:center"><div class=mu>${Math.round(v)}</div><div style="height:${v/mx*70}px;background:var(--pr);border-radius:6px;margin:2px 6px"></div><div class=mu>أسبوع ${i+1}</div></div>`).join('')}</div>
+ <h3>أعلى الجهات</h3>${tm.map(([k,v])=>`<div class="card row"><span>${esc(k)}</span><b>${f(v)}</b></div>`).join('')||'<p class=mu>لا توجد بيانات.</p>'}
+ <button onclick="exportCSV()" style="width:100%">📋 نسخ التقرير (CSV)</button>`}
+function exportCSV(){const t='التاريخ,النوع,الفئة,المبلغ,ملاحظة\n'+S.tx.map(x=>[x.d,x.t=='i'?'دخل':'مصروف',x.c,x.a,'"'+x.n.replace(/"/g,'""')+'"'].join(',')).join('\n');
+ clip(t).then(()=>alert('تم النسخ، الصقه في Excel أو Sheets'),()=>prompt('انسخ:',t))}
+function set(){return `<div class=card><b>العملة</b><input value="${esc(S.cur)}" onchange="S.cur=this.value||'ج.م';save();render()"></div>
+ <div class=card><b>المظهر</b><div class=tg style="margin-top:6px">${[['','تلقائي'],['light','فاتح'],['dark','داكن']].map(t=>`<button class="${S.theme==t[0]?'on':''}" onclick="S.theme='${t[0]}';save();render()">${t[1]}</button>`).join('')}</div></div>
+ <div class=card><b>فئات مخصصة</b><div class=row><input id=nc placeholder="اسم فئة جديدة"><button onclick="addCat()">إضافة</button></div><div class=mu>${S.cats.map(esc).join(' • ')}</div></div>
+ <div class=card><b>📩 رسالة بنك</b><div class=mu>الصق رسالة خصم من البنك وهيتم استخراج المبلغ والفئة (عربي/إنجليزي). الرسالة نفسها مش بتتخزن.</div><textarea id=sms rows=3 style="width:100%;background:var(--bg);color:inherit;border:1px solid var(--bd);border-radius:10px;padding:8px"></textarea><button onclick="openAdd(parse($('#sms').value))" style="width:100%;margin-top:6px">استخراج</button></div>
+ <div class=card><b>نسخة احتياطية</b><div class=grid style="margin-top:6px"><button class=g onclick="clip(JSON.stringify(S)).then(()=>alert('تم النسخ'))">نسخ البيانات</button><button class=g onclick="let t=prompt('الصق النسخة:');if(t)try{S=Object.assign(def(),JSON.parse(t));save();render()}catch(e){alert('نسخة غير صالحة')}">استرجاع</button></div></div>
+ <button class=g style="width:100%;color:var(--rd)" onclick="if(confirm('مسح كل البيانات؟')){S=def();save();render()}">مسح كل البيانات</button>
+ <p class=mu style="text-align:center">بياناتك محفوظة على جهازك فقط، وتشتغل بدون إنترنت.</p>`}
+function addCat(){const v=$('#nc').value.trim();if(v&&!S.cats.includes(v)){S.cats.push(v);save();render()}}
+const KW={'طعام':'أكل اكل غدا عشا فطار مطعم قهوة كافيه food lunch dinner coffee restaurant talabat','مواصلات':'بنزين اوبر أوبر تاكسي مواصلات مترو uber fuel taxi careem','فواتير':'فاتورة فواتير كهرباء غاز انترنت نت رصيد موبايل bill electric vodafone etisalat','تسوق':'ملابس تسوق سوبر هايبر شراء shop market amazon noon','صحة':'دواء دكتور صيدلية علاج pharmacy health','ترفيه':'سينما لعبة فيلم رحلة movie netflix','تعليم':'كورس مدرسة كتاب جامعة school course'};
+const INC='قبضت استلمت مرتب راتب دخل إيداع ايداع تحويل-وارد salary received income deposit credited';
+function parse(s){s=s.replace(/[٠-٩]/g,d=>d.charCodeAt(0)-1632).replace(/٫/g,'.').replace(/,/g,'');
+ const m=s.match(/(\d+(?:\.\d+)?)/),low=s.toLowerCase();let c='أخرى';
+ for(const k in KW)if(KW[k].split(' ').some(w=>low.includes(w))){c=k;break}
+ const t=INC.split(' ').some(w=>low.includes(w))?'i':'e',at=low.match(/(?:at|لدى|عند|في)\s+([^\s.,]+(?:\s[^\s.,]+)?)/);
+ return{a:m?+m[1]:'',c,t,n:at?at[1]:''}}
+const clip=t=>window.Android?(Android.copy(t),Promise.resolve()):navigator.clipboard.writeText(t);
+window.onVoice=t=>{const p=parse(t);p.n=p.n||t;openAdd(p)};
+function mic(){if(window.Android){Android.startVoice();return}const R=window.SpeechRecognition||window.webkitSpeechRecognition;if(!R)return alert('المتصفح لا يدعم الإدخال الصوتي. جرب Chrome.');
+ const r=new R();r.lang='ar-EG';r.onresult=e=>{const t=e.results[0][0].transcript;const p=parse(t);p.n=p.n||t;openAdd(p)};r.onerror=()=>alert('تعذر التسجيل، تأكد من إذن الميكروفون');r.start()}
+function openAdd(p={}){p=Object.assign({t:'e',a:'',c:S.cats[0],n:'',d:today()},p);
+ $('#mb').innerHTML=`<div class=tg><button id=te class="${p.t=='e'?'on':''}" onclick="setT('e')">مصروف</button><button id=ti class="${p.t=='i'?'on':''}" onclick="setT('i')">دخل</button></div>
+ <input id=a type=number inputmode=decimal placeholder="المبلغ" value="${p.a}"><select id=c>${S.cats.concat(['دخل']).map(c=>`<option ${c==(p.t=='i'?'دخل':p.c)?'selected':''}>${esc(c)}</option>`).join('')}</select>
+ <input id=n placeholder="ملاحظة" value="${esc(p.n)}"><input id=d type=date value="${p.d}">
+ <div class=grid style="margin-top:8px"><button onclick="saveTx()">حفظ</button><button class=g onclick="closeM()">إلغاء</button></div>`;
+ window._t=p.t;$('#modal').style.display='flex'}
+function setT(t){window._t=t;$('#te').className=t=='e'?'on':'';$('#ti').className=t=='i'?'on':'';if(t=='i')$('#c').value='دخل'}
+function saveTx(){const a=+$('#a').value;if(!a)return $('#a').focus();S.tx.push({id:Date.now(),t:window._t,a,c:$('#c').value,n:$('#n').value,d:$('#d').value||today()});save();closeM();tab='home';render()}
+function closeM(){$('#modal').style.display='none'}
+function del(id){if(confirm('حذف المعاملة؟')){S.tx=S.tx.filter(x=>x.id!=id);save();render()}}
+render();
+</script></body></html>
